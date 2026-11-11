@@ -1,0 +1,37 @@
+{
+  "name": "webgpu-apple-hdr",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "EXPO_TV=0 expo start",
+    "start:tvos": "EXPO_TV=1 expo start",
+    "prebuild:ios": "node scripts/prebuild.mjs ios",
+    "prebuild:tvos": "node scripts/prebuild.mjs tvos",
+    "ios": "EXPO_TV=0 expo run:ios",
+    "tvos": "EXPO_TV=1 expo run:ios",
+    "postinstall": "patch-package --error-on-fail",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:gpu": "node --experimental-strip-types scripts/test-gpu.mjs"
+  },
+  "dependencies": {
+    "expo": "58.0.19",
+    "react": "19.3.0",
+    "react-native": "npm:react-native-tvos@0.88.0-0",
+    "react-native-webgpu": "0.21.1"
+  },
+  "expo": {
+    "install": {
+      "exclude": ["react-native"]
+    }
+  },
+  "devDependencies": {
+    "@react-native-tvos/config-tv": "0.1.7",
+    "@types/react": "19.2.18",
+    "@webgpu/types": "0.1.69",
+    "patch-package": "8.0.1",
+    "playwright": "1.63.0",
+    "typescript": "6.0.3"
+  }
+}
