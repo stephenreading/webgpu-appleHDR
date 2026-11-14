@@ -28,7 +28,7 @@ diff --git a/node_modules/react-native-webgpu/apple/MetalLayerColorSpace.mm b/no
    CALayer *layer = (__bridge CALayer *)nativeSurface;
    if (![layer isKindOfClass:[CAMetalLayer class]]) {
      return;
-@@ -54,17 +57,24 @@
+@@ -54,17 +57,29 @@
    }
    const bool extendedRange =
        isFloat && toneMappingMode == CanvasToneMappingMode::Extended;
@@ -44,15 +44,20 @@ diff --git a/node_modules/react-native-webgpu/apple/MetalLayerColorSpace.mm b/no
 +  // Reset the inactive path too: the same native layer survives a selection
 +  // change, and a previous opt-in must not mask the path under test.
 +#if TARGET_OS_IOS || TARGET_OS_MACCATALYST || TARGET_OS_OSX || TARGET_OS_TV || TARGET_OS_VISION
++  // Disable compositor tone mapping independently of the requested HDR range.
++  // Keep the app's output values and let the display limit clip highlights.
++  if (@available(iOS 18.0, macCatalyst 18.0, macOS 15.0, tvOS 18.0, visionOS 2.0, *)) {
++    metalLayer.toneMapMode = CAToneMapModeNever;
+   }
+-#else
+-  (void)extendedRange;
 +  if (@available(iOS 26.0, macCatalyst 26.0, macOS 26.0, tvOS 26.0, visionOS 26.0, *)) {
 +    // Headroom is the app-declared linear luminance ratio to SDR white.
 +    // Zero clears the hint when comparing the legacy or SDR path.
 +    metalLayer.contentsHeadroom = preferred && extendedRange ? contentsHeadroom : 0.0;
 +    metalLayer.preferredDynamicRange =
 +        preferred && extendedRange ? CADynamicRangeHigh : CADynamicRangeStandard;
-   }
--#else
--  (void)extendedRange;
++  }
 +#endif
 +  // The legacy property is unavailable on tvOS. Its selected path is the
 +  // upstream guarded fallback there; never attempt a selector/runtime bypass.
