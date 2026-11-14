@@ -25,6 +25,12 @@ runtime selector. Both modes render the same shader into `rgba16float`, with
 `colorSpace: 'srgb'` and `toneMapping: { mode: 'extended' }`. The layer remains
 extended sRGB. No PQ pass or Three.js is involved.
 
+Both paths explicitly set `toneMapMode = CAToneMapModeNever` where supported
+(iOS/tvOS/Catalyst 18+, macOS 15+, visionOS 2+). This experiment tests whether
+the preferred path can enable HDR while retaining the legacy path's clipping
+behavior, without automatic layer tone mapping. It keeps the content headroom
+declaration at 11; it does not substitute the maximum float value.
+
 1. Build on Xcode 26+ following the README, and run on an HDR-capable physical device.
 2. Start with gain 0: the left and right whites should match.
 3. Raise the slider to 10: the right swatch becomes linear 11× SDR white;

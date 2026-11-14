@@ -101,6 +101,11 @@ options select the legacy path and headroom 0. The app explicitly selects
 The API selector is diagnostic scaffolding, not a proposal to standardize
 these options in WebGPU.
 
+Both paths set `toneMapMode = CAToneMapModeNever` wherever that API is
+available. This explicitly disables Core Animation tone mapping while testing
+HDR activation: highlights exceeding the available display range may clip.
+The headroom declaration and API selector keep their existing behavior.
+
 | Selected path | Native settings |
 | --- | --- |
 | `preferred`, OS 26+ | `preferredDynamicRange = CADynamicRangeHigh`, `contentsHeadroom = 11`; legacy flag cleared wherever available |
@@ -124,14 +129,14 @@ tone-mapping pass, or direct native-layer manipulation in the app.
 
 Checked against Apple's symbol documentation and SDK 26 headers:
 
-| Platform | `CAMetalLayer.wantsExtendedDynamicRangeContent` | `CALayer.preferredDynamicRange` and `contentsHeadroom` |
-| --- | --- | --- |
-| iOS / iPadOS | 16.0+ | 26.0+ |
-| Mac Catalyst | 16.0+ | 26.0+ |
-| macOS | 10.11+ | 26.0+ |
-| tvOS | **Unavailable** | 26.0+ |
-| visionOS | 1.0+ | 26.0+ |
-| watchOS | Unavailable | Unavailable |
+| Platform | `CAMetalLayer.wantsExtendedDynamicRangeContent` | `CALayer.preferredDynamicRange` and `contentsHeadroom` | `CALayer.toneMapMode = .never` |
+| --- | --- | --- | --- |
+| iOS / iPadOS | 16.0+ | 26.0+ | 18.0+ |
+| Mac Catalyst | 16.0+ | 26.0+ | 18.0+ |
+| macOS | 10.11+ | 26.0+ | 15.0+ |
+| tvOS | **Unavailable** | 26.0+ | 18.0+ |
+| visionOS | 1.0+ | 26.0+ | 2.0+ |
+| watchOS | Unavailable | Unavailable | Unavailable |
 
 The patch uses an explicit platform allowlist around each call, then an
 `@available` check with these versions. In particular, it compiles the legacy
@@ -153,6 +158,8 @@ Sources:
   ([availability metadata](https://developer.apple.com/documentation/quartzcore/calayer/preferreddynamicrange.md)).
 - Apple: [CALayer.contentsHeadroom](https://developer.apple.com/documentation/quartzcore/calayer/contentsheadroom)
   ([availability metadata](https://developer.apple.com/documentation/quartzcore/calayer/contentsheadroom.md)).
+- Apple: [CALayer.ToneMapMode.never](https://developer.apple.com/documentation/quartzcore/calayer/tonemapmode-swift.struct/never)
+  ([availability metadata](https://developer.apple.com/documentation/quartzcore/calayer/tonemapmode-swift.struct/never.md)).
 - SDK 26 header mirror: [CAMetalLayer.h](https://github.com/xybp888/iOS-SDKs/blob/master/iPhoneOS26.0.sdk/System/Library/Frameworks/QuartzCore.framework/Headers/CAMetalLayer.h),
   [CALayer.h](https://github.com/xybp888/iOS-SDKs/blob/master/iPhoneOS26.0.sdk/System/Library/Frameworks/QuartzCore.framework/Headers/CALayer.h).
   `contentsHeadroom`'s header comment explicitly describes its use with
