@@ -59,6 +59,10 @@ device build without Metro, use Release (`npm run ios -- --configuration Release
 - Switch APIs without restarting. All ten patches keep identical pixel values
   and positions while switching and foregrounding. On Apple TV, use the Siri
   Remote to select either API button.
+- **Tone mapping Off** selects Core Animation's `.never` policy (the default).
+  **On** selects `.ifSupported`, requesting system tone mapping where supported.
+  This changes layer presentation, while the shader and WebGPU extended mode stay
+  fixed. The API buttons, tone-mapping buttons and pattern form one compact group.
 - Compare the steps below the display's available headroom, then look for where
   brighter steps clip together. The same fixed pattern is used in Bubblepopalypse's
   Debug menu, independently of its saved highlight gain.
@@ -81,7 +85,7 @@ state and available display headroom may affect the result.
 is applied automatically by `patch-package` during `npm ci`. Rebuild the native
 app after editing it; a JavaScript reload cannot replace native code.
 
-The sample adds two **experimental, nonstandard native configuration keys**
+The sample adds three **experimental, nonstandard native configuration keys**
 to select and instrument the comparison:
 
 ```js
@@ -92,6 +96,7 @@ context.configure({
   colorSpace: 'srgb',
   toneMapping: { mode: 'extended' },
   nativeDynamicRangeMode: 'preferred', // or 'wants-extended'
+  nativeToneMapMode: 'never', // or 'if-supported'
   nativeContentsHeadroom: 11,
 });
 ```
@@ -103,10 +108,15 @@ options select the legacy path and headroom 0. The app explicitly selects
 The API selector is diagnostic scaffolding, not a proposal to standardize
 these options in WebGPU.
 
-Both paths set `toneMapMode = CAToneMapModeNever` wherever that API is
-available. This explicitly disables Core Animation tone mapping while testing
-HDR activation: highlights exceeding the available display range may clip.
-The headroom declaration and API selector keep their existing behavior.
+`nativeToneMapMode` independently selects `CAToneMapModeNever` (Off) or
+`CAToneMapModeIfSupported` (On), and defaults to `never` when omitted. The
+selection is applied after the range properties, before the transaction flush,
+on either API path. With Off, highlights exceeding available display headroom
+may clip; On requests system adaptation, whose visible effect depends on the
+OS, content and display. A browser readback cannot validate this native effect.
+
+Rebuild the native app after this patch update. An older build ignores the new
+configuration key and cannot make the on/off comparison through a JS reload.
 
 | Selected path | Native settings |
 | --- | --- |
@@ -115,7 +125,7 @@ The headroom declaration and API selector keep their existing behavior.
 | `preferred`, OS before 26 | No HDR opt-in; legacy flag cleared wherever available. No fallback, so the selected API is actually the one being tested |
 | `wants-extended`, tvOS | No legacy call: it is unavailable. The UI labels this as the upstream SDR baseline |
 
-The mode and headroom are stored with the surface configuration and passed to
+The API, tone-mapping policy and headroom are stored with the surface configuration and passed to
 the existing configuration/resize/attach paths. Selecting another API clears
 the inactive path on the persistent Metal layer. The existing transaction
 flush is preserved so changes made on the JS thread reach Core Animation.
@@ -131,7 +141,7 @@ tone-mapping pass, or direct native-layer manipulation in the app.
 
 Checked against Apple's symbol documentation and SDK 26 headers:
 
-| Platform | `CAMetalLayer.wantsExtendedDynamicRangeContent` | `CALayer.preferredDynamicRange` and `contentsHeadroom` | `CALayer.toneMapMode = .never` |
+| Platform | `CAMetalLayer.wantsExtendedDynamicRangeContent` | `CALayer.preferredDynamicRange` and `contentsHeadroom` | `CALayer.toneMapMode` |
 | --- | --- | --- | --- |
 | iOS / iPadOS | 16.0+ | 26.0+ | 18.0+ |
 | Mac Catalyst | 16.0+ | 26.0+ | 18.0+ |
@@ -162,6 +172,7 @@ Sources:
   ([availability metadata](https://developer.apple.com/documentation/quartzcore/calayer/contentsheadroom.md)).
 - Apple: [CALayer.ToneMapMode.never](https://developer.apple.com/documentation/quartzcore/calayer/tonemapmode-swift.struct/never)
   ([availability metadata](https://developer.apple.com/documentation/quartzcore/calayer/tonemapmode-swift.struct/never.md)).
+- Apple: [CALayer.ToneMapMode.ifSupported](https://developer.apple.com/documentation/quartzcore/calayer/tonemapmode-swift.struct/ifsupported).
 - SDK 26 header mirror: [CAMetalLayer.h](https://github.com/xybp888/iOS-SDKs/blob/master/iPhoneOS26.0.sdk/System/Library/Frameworks/QuartzCore.framework/Headers/CAMetalLayer.h),
   [CALayer.h](https://github.com/xybp888/iOS-SDKs/blob/master/iPhoneOS26.0.sdk/System/Library/Frameworks/QuartzCore.framework/Headers/CALayer.h).
   `contentsHeadroom`'s header comment explicitly describes its use with

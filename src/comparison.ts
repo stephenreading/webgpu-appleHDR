@@ -1,4 +1,5 @@
 export type PresentationMode = 'preferred' | 'wants-extended';
+export type LayerToneMapMode = 'never' | 'if-supported';
 
 export const GRAYSCALE_STEPS = [0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 11] as const;
 export const STEP_COLUMNS = 5;
@@ -41,9 +42,9 @@ fn encodeSRGB(linear: f32) -> f32 {
 }
 `;
 
-// These two native* keys are experimental additions in the bundled patch,
+// These native* keys are experimental additions in the bundled patch,
 // not standard WebGPU options. The remaining configuration is identical.
-export function comparisonConfiguration(device: GPUDevice, mode: PresentationMode) {
+export function comparisonConfiguration(device: GPUDevice, mode: PresentationMode, toneMapMode: LayerToneMapMode = 'never') {
   return {
     device,
     format: FORMAT,
@@ -51,9 +52,11 @@ export function comparisonConfiguration(device: GPUDevice, mode: PresentationMod
     colorSpace: 'srgb',
     toneMapping: { mode: 'extended' },
     nativeDynamicRangeMode: mode,
+    nativeToneMapMode: toneMapMode,
     nativeContentsHeadroom: CONTENTS_HEADROOM,
   } satisfies GPUCanvasConfiguration & {
     nativeDynamicRangeMode: PresentationMode;
+    nativeToneMapMode: LayerToneMapMode;
     nativeContentsHeadroom: number;
   };
 }

@@ -25,11 +25,12 @@ runtime selector. Both modes render the same shader into `rgba16float`, with
 `colorSpace: 'srgb'` and `toneMapping: { mode: 'extended' }`. The layer remains
 extended sRGB. No PQ pass or Three.js is involved.
 
-Both paths explicitly set `toneMapMode = CAToneMapModeNever` where supported
-(iOS/tvOS/Catalyst 18+, macOS 15+, visionOS 2+). This experiment tests whether
-the preferred path can enable HDR while retaining the legacy path's clipping
-behavior, without automatic layer tone mapping. It keeps the content headroom
-declaration at 11; it does not substitute the maximum float value.
+Both paths expose a separate layer tone-mapping control where supported
+(iOS/tvOS/Catalyst 18+, macOS 15+, visionOS 2+). Off requests
+`CAToneMapModeNever`; On requests `CAToneMapModeIfSupported` as a positive
+control. The default is Off. The experiment tests whether the preferred path
+can enable HDR while retaining the legacy path's clipping behavior, and whether
+system tone mapping changes that response. Content headroom stays at 11.
 
 1. Build on Xcode 26+ following the README, and run on an HDR-capable physical device.
 2. Inspect the ten labeled grayscale steps: linear 0.25, 0.5, 1, 1.5, 2, 3,
@@ -40,6 +41,8 @@ declaration at 11; it does not substitute the maximum float value.
    plus `contentsHeadroom = 11`, keeping the pattern unchanged.
 5. Switch back and forth, and background/foreground the app. Check that the
    steps within the display's available range retain the same brightness.
+   Flip Tone mapping On/Off for each API while keeping the pixels unchanged,
+   especially when the display's available headroom is below the 11× content peak.
 6. On Apple TV, record the selected HDMI video format. The app does not request
    a display-mode switch. The legacy path is an intentionally unavailable/SDR baseline there.
 
@@ -58,6 +61,7 @@ Please fill in actual observations before submitting:
 
 Xcode version: …
 Repro commit: …
+Layer tone mapping (Off / On): …
 Brightness / ambient light / power conditions: …
 
 The README links Apple's exact availability declarations. The new APIs start

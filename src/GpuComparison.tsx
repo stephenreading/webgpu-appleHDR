@@ -1,15 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { AppState, PixelRatio, StyleSheet } from 'react-native';
 import { Canvas, type CanvasRef, type RNCanvasContext } from 'react-native-webgpu';
-import { comparisonConfiguration, createComparisonRenderer, type PresentationMode } from './comparison';
+import { comparisonConfiguration, createComparisonRenderer, type LayerToneMapMode, type PresentationMode } from './comparison';
 
-export function GpuComparison({ mode, onError }: {
+export function GpuComparison({ mode, toneMapMode, onError }: {
   mode: PresentationMode;
+  toneMapMode: LayerToneMapMode;
   onError: (message: string) => void;
 }) {
   const canvasRef = useRef<CanvasRef>(null);
-  const latest = useRef({ mode, onError });
-  latest.current = { mode, onError };
+  const latest = useRef({ mode, toneMapMode, onError });
+  latest.current = { mode, toneMapMode, onError };
   const size = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -19,6 +20,7 @@ export function GpuComparison({ mode, onError }: {
     let context: RNCanvasContext | null = null;
     let renderer: ReturnType<typeof createComparisonRenderer> | undefined;
     let configuredMode: PresentationMode | undefined;
+    let configuredToneMapMode: LayerToneMapMode | undefined;
     let active = AppState.currentState === 'active';
     const subscription = AppState.addEventListener('change', (state) => {
       active = state === 'active';
@@ -42,11 +44,12 @@ export function GpuComparison({ mode, onError }: {
             if (context.canvas.width !== width) context.canvas.width = width;
             if (context.canvas.height !== height) context.canvas.height = height;
             const current = latest.current;
-            if (configuredMode !== current.mode) {
+            if (configuredMode !== current.mode || configuredToneMapMode !== current.toneMapMode) {
               // Reconfigure between complete frames, never while holding a
               // drawable. The float format, shader and device stay the same.
-              context.configure(comparisonConfiguration(device, current.mode));
+              context.configure(comparisonConfiguration(device, current.mode, current.toneMapMode));
               configuredMode = current.mode;
+              configuredToneMapMode = current.toneMapMode;
             }
             renderer.draw(context.getCurrentTexture());
             context.present();
