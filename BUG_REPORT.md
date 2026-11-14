@@ -30,19 +30,19 @@ Both paths expose a separate layer tone-mapping control where supported
 `CAToneMapModeNever`; On requests `CAToneMapModeIfSupported` as a positive
 control. The default is Off. The experiment tests whether the preferred path
 can enable HDR while retaining the legacy path's clipping behavior, and whether
-system tone mapping changes that response. Content headroom stays at 11.
+system tone mapping changes that response. Content headroom stays at 65504 (the largest finite float16 value).
 
 1. Build on Xcode 26+ following the README, and run on an HDR-capable physical device.
-2. Inspect the ten labeled grayscale steps: linear 0.25, 0.5, 1, 1.5, 2, 3,
-   4, 6, 8 and 11× SDR white, in two rows of five. The 1× step is marked SDR white.
+2. Inspect the ten labeled grayscale steps: linear 0.25, 0.5, 1, 2, 4, 16,
+   64, 256, 4096 and 65504× SDR white, in two rows of five. The 1× step is marked SDR white.
 3. Look for where the brighter steps clip together. Pixels are sRGB-encoded
    before being written to float16; no brightness gain is applied to the pattern.
 4. Switch between the legacy Metal flag and `preferredDynamicRange = high`
-   plus `contentsHeadroom = 11`, keeping the pattern unchanged.
+   plus `contentsHeadroom = 65504`, keeping the pattern unchanged.
 5. Switch back and forth, and background/foreground the app. Check that the
    steps within the display's available range retain the same brightness.
    Flip Tone mapping On/Off for each API while keeping the pixels unchanged,
-   especially when the display's available headroom is below the 11× content peak.
+   especially when the display's available headroom is below the 65504× content peak.
 6. On Apple TV, record the selected HDMI video format. The app does not request
    a display-mode switch. The legacy path is an intentionally unavailable/SDR baseline there.
 
@@ -73,5 +73,5 @@ and runtime version checks; it does not use a selector bypass.
 The experimental native configuration keys are test instrumentation, not a
 request to expose those exact options publicly. A production design would
 also need to settle how content headroom is supplied, legacy fallback behavior,
-and interaction with system display policy. The sample's 11 is a content-specific
-value, not a universal headroom default.
+and interaction with system display policy. The sample's 65504 matches its maximum
+linear test step; it is not a universal headroom default.
