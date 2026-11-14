@@ -4,7 +4,7 @@ A minimal iOS and tvOS repro for `react-native-webgpu` **0.21.1**, comparing
 `CAMetalLayer.wantsExtendedDynamicRangeContent` with
 `CALayer.preferredDynamicRange` **plus `contentsHeadroom`**.
 
-One Metal-backed WebGPU canvas, two white swatches, one slider, two presentation
+One Metal-backed WebGPU canvas, ten fixed grayscale steps, two presentation
 buttons. The shader, GPU device, texture format, color space and pixel values
 stay identical when switching APIs. No Three.js or postprocessing is involved.
 
@@ -52,19 +52,21 @@ device build without Metro, use Release (`npm run ios -- --configuration Release
 
 ## Use the comparison
 
-- **Left:** SDR reference, always linear white **1.0**.
-- **Right:** linear white **1 + slider gain**. Gain 0 makes both swatches match;
-  gain 10 requests **11× SDR white**. Default gain is 1 on iOS and 10 on tvOS.
-- Drag the slider on a phone. On Apple TV, focus it and press left/right
-  (0.5 steps); up/down moves to the API buttons. VoiceOver can adjust it too.
-- Switch APIs without restarting or changing the gain. Move through 0 → 10 → 0
-  and switch back and forth. The value is kept while switching and foregrounding;
-  a fresh launch resets it to the platform default.
+- The pattern has two rows of five patches, ordered left to right, top to bottom:
+  **0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 11× SDR white**.
+- Labels describe **linear luminance**, before sRGB encoding. The **1×** patch
+  is marked as the SDR-white reference. Label areas and gaps are black.
+- Switch APIs without restarting. All ten patches keep identical pixel values
+  and positions while switching and foregrounding. On Apple TV, use the Siri
+  Remote to select either API button.
+- Compare the steps below the display's available headroom, then look for where
+  brighter steps clip together. The same fixed pattern is used in Bubblepopalypse's
+  Debug menu, independently of its saved highlight gain.
 
 `contentsHeadroom` stays at **11** throughout the preferred path because that
 is this sample's maximum linear luminance ratio. It describes the content;
 it is neither a brightness multiplier nor a promise that a display can emit
-11× white. The slider changes only a shader uniform, on the next frame.
+11× white. There is no brightness slider or gain applied to this pattern.
 
 Use a physical HDR-capable display to assess brightness. Simulators and the
 automated GPU test can check rendering but cannot establish real HDR output.
@@ -176,9 +178,9 @@ npm run test:gpu
 CHROMIUM_PATH=/usr/bin/chromium npm run test:gpu
 ```
 
-The GPU check executes the **actual app renderer and WGSL**, reads back the
-float16 pixels at gains 0, 1, 4, 10, 10, 0, and checks the fixed SDR reference,
-unclipped HDR values, alpha, gap and WebGPU validation errors. It uses a browser
+The GPU check executes the **actual app renderer and WGSL**, reads back all ten
+steps across repeated frames, and checks their sRGB encoding, unclipped HDR
+values, alpha, black label areas and WebGPU validation errors. It uses a browser
 for portability; it does not execute the native patch or test Apple's compositor.
 
 Initial automated validation was performed on Linux: TypeScript, configuration
@@ -191,7 +193,7 @@ proof of HDR presentation.
 ## Files to inspect
 
 - [Native patch](patches/react-native-webgpu+0.21.1.patch): the two native paths and availability guards.
-- [comparison.ts](src/comparison.ts): canvas configuration, WGSL and slider uniform.
+- [comparison.ts](src/comparison.ts): canvas configuration, fixed luminance steps and WGSL.
 - [GpuComparison.tsx](src/GpuComparison.tsx): context configuration and presentation.
 - [App.tsx](App.tsx): the entire screen.
 - [withAppleBuild.js](plugins/withAppleBuild.js): platform build settings.
