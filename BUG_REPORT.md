@@ -32,12 +32,14 @@ behavior, without automatic layer tone mapping. It keeps the content headroom
 declaration at 11; it does not substitute the maximum float value.
 
 1. Build on Xcode 26+ following the README, and run on an HDR-capable physical device.
-2. Start with gain 0: the left and right whites should match.
-3. Raise the slider to 10: the right swatch becomes linear 11× SDR white;
-   the left remains 1×. Pixels are sRGB-encoded before being written to float16.
+2. Inspect the ten labeled grayscale steps: linear 0.25, 0.5, 1, 1.5, 2, 3,
+   4, 6, 8 and 11× SDR white, in two rows of five. The 1× step is marked SDR white.
+3. Look for where the brighter steps clip together. Pixels are sRGB-encoded
+   before being written to float16; no brightness gain is applied to the pattern.
 4. Switch between the legacy Metal flag and `preferredDynamicRange = high`
-   plus `contentsHeadroom = 11`, keeping the gain unchanged.
-5. Switch back and forth, return to gain 0, and background/foreground the app.
+   plus `contentsHeadroom = 11`, keeping the pattern unchanged.
+5. Switch back and forth, and background/foreground the app. Check that the
+   steps within the display's available range retain the same brightness.
 6. On Apple TV, record the selected HDMI video format. The app does not request
    a display-mode switch. The legacy path is an intentionally unavailable/SDR baseline there.
 
@@ -49,7 +51,7 @@ preferred API, to keep the A/B test honest.
 
 Please fill in actual observations before submitting:
 
-| Device / OS | Display / video format | Legacy at gain 0 / 10 | Preferred + headroom at gain 0 / 10 | Switching / foreground result |
+| Device / OS | Display / video format | Legacy: visible steps / clipping boundary | Preferred + headroom: visible steps / clipping boundary | Switching / foreground result |
 | --- | --- | --- | --- | --- |
 | iPhone or iPad: … | … | … | … | … |
 | Apple TV: … | … | Unavailable / SDR baseline | … | … |

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { comparisonConfiguration, CONTENTS_HEADROOM, MAX_GAIN } from '../src/comparison.ts';
+import { comparisonConfiguration, CONTENTS_HEADROOM, GRAYSCALE_STEPS } from '../src/comparison.ts';
 import { presentationStatus } from '../src/presentation.ts';
 
 test('the A/B comparison changes only the presentation API', () => {
@@ -12,7 +12,7 @@ test('the A/B comparison changes only the presentation API', () => {
   assert.equal(preferred.format, 'rgba16float');
   assert.equal(preferred.colorSpace, 'srgb');
   assert.equal(preferred.toneMapping.mode, 'extended');
-  assert.equal(preferred.nativeContentsHeadroom, 1 + MAX_GAIN);
+  assert.equal(preferred.nativeContentsHeadroom, Math.max(...GRAYSCALE_STEPS));
   assert.equal(CONTENTS_HEADROOM, 11);
 });
 

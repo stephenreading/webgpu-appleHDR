@@ -3,14 +3,13 @@ import { AppState, PixelRatio, StyleSheet } from 'react-native';
 import { Canvas, type CanvasRef, type RNCanvasContext } from 'react-native-webgpu';
 import { comparisonConfiguration, createComparisonRenderer, type PresentationMode } from './comparison';
 
-export function GpuComparison({ gain, mode, onError }: {
-  gain: number;
+export function GpuComparison({ mode, onError }: {
   mode: PresentationMode;
   onError: (message: string) => void;
 }) {
   const canvasRef = useRef<CanvasRef>(null);
-  const latest = useRef({ gain, mode, onError });
-  latest.current = { gain, mode, onError };
+  const latest = useRef({ mode, onError });
+  latest.current = { mode, onError };
   const size = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -49,7 +48,7 @@ export function GpuComparison({ gain, mode, onError }: {
               context.configure(comparisonConfiguration(device, current.mode));
               configuredMode = current.mode;
             }
-            renderer.draw(context.getCurrentTexture(), current.gain);
+            renderer.draw(context.getCurrentTexture());
             context.present();
           }
         }
@@ -78,7 +77,6 @@ export function GpuComparison({ gain, mode, onError }: {
       subscription.remove();
       // Release the surface's device reference before destroying its device.
       context?.unconfigure();
-      renderer?.destroy();
       device?.destroy();
     };
   }, []);
