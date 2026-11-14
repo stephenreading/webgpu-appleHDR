@@ -17,7 +17,19 @@ test('the A/B comparison changes only the presentation API', () => {
 });
 
 test('unsupported APIs are identified, rather than silently called HDR', () => {
-  assert.match(presentationStatus('wants-extended', true, 26), /Unavailable on tvOS/);
-  assert.match(presentationStatus('preferred', false, 25), /Requires iOS \/ tvOS 26/);
-  assert.match(presentationStatus('preferred', true, 26), /contentsHeadroom = 11/);
+  assert.match(presentationStatus('wants-extended', true, 26), /unavailable on tvOS/);
+  assert.match(presentationStatus('preferred', false, 25), /requires OS 26/);
+  assert.equal(presentationStatus('preferred', true, 26), '');
+});
+
+test('layer tone mapping changes only native presentation, preserving HDR pixels and headroom', () => {
+  for (const mode of ['preferred', 'wants-extended']) {
+    const off = comparisonConfiguration({}, mode, 'never');
+    const on = comparisonConfiguration(off.device, mode, 'if-supported');
+    assert.equal(off.nativeToneMapMode, 'never');
+    assert.equal(on.nativeToneMapMode, 'if-supported');
+    assert.deepEqual({ ...off, nativeToneMapMode: undefined }, { ...on, nativeToneMapMode: undefined });
+    assert.equal(on.toneMapping.mode, 'extended');
+    assert.equal(on.nativeContentsHeadroom, 11);
+  }
 });

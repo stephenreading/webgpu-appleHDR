@@ -8,7 +8,7 @@ diff --git a/node_modules/react-native-webgpu/apple/MetalLayerColorSpace.mm b/no
  #import <QuartzCore/CAMetalLayer.h>
  #import <QuartzCore/CATransaction.h>
 
-@@ -24,13 +25,15 @@
+@@ -24,13 +25,16 @@
  // 1.0 on a float canvas. Core Animation keeps an extended colorspace inside
  // the display's SDR range unless the layer asks for extended dynamic range
  // content, so without it the values clip at white: that is "standard". For
@@ -24,11 +24,12 @@ diff --git a/node_modules/react-native-webgpu/apple/MetalLayerColorSpace.mm b/no
 -                                 CanvasToneMappingMode toneMappingMode) {
 +                                 CanvasToneMappingMode toneMappingMode,
 +                                 CanvasDynamicRangeMode dynamicRangeMode,
-+                                 double contentsHeadroom) {
++                                 double contentsHeadroom,
++                                 CanvasLayerToneMapMode layerToneMapMode) {
    CALayer *layer = (__bridge CALayer *)nativeSurface;
    if (![layer isKindOfClass:[CAMetalLayer class]]) {
      return;
-@@ -54,17 +57,29 @@
+@@ -54,17 +58,32 @@
    }
    const bool extendedRange =
        isFloat && toneMappingMode == CanvasToneMappingMode::Extended;
@@ -44,20 +45,15 @@ diff --git a/node_modules/react-native-webgpu/apple/MetalLayerColorSpace.mm b/no
 +  // Reset the inactive path too: the same native layer survives a selection
 +  // change, and a previous opt-in must not mask the path under test.
 +#if TARGET_OS_IOS || TARGET_OS_MACCATALYST || TARGET_OS_OSX || TARGET_OS_TV || TARGET_OS_VISION
-+  // Disable compositor tone mapping independently of the requested HDR range.
-+  // Keep the app's output values and let the display limit clip highlights.
-+  if (@available(iOS 18.0, macCatalyst 18.0, macOS 15.0, tvOS 18.0, visionOS 2.0, *)) {
-+    metalLayer.toneMapMode = CAToneMapModeNever;
-   }
--#else
--  (void)extendedRange;
 +  if (@available(iOS 26.0, macCatalyst 26.0, macOS 26.0, tvOS 26.0, visionOS 26.0, *)) {
 +    // Headroom is the app-declared linear luminance ratio to SDR white.
 +    // Zero clears the hint when comparing the legacy or SDR path.
 +    metalLayer.contentsHeadroom = preferred && extendedRange ? contentsHeadroom : 0.0;
 +    metalLayer.preferredDynamicRange =
 +        preferred && extendedRange ? CADynamicRangeHigh : CADynamicRangeStandard;
-+  }
+   }
+-#else
+-  (void)extendedRange;
 +#endif
 +  // The legacy property is unavailable on tvOS. Its selected path is the
 +  // upstream guarded fallback there; never attempt a selector/runtime bypass.
@@ -65,85 +61,101 @@ diff --git a/node_modules/react-native-webgpu/apple/MetalLayerColorSpace.mm b/no
 +  if (@available(iOS 16.0, macCatalyst 16.0, macOS 10.11, visionOS 1.0, *)) {
 +    metalLayer.wantsExtendedDynamicRangeContent = !preferred && extendedRange;
 +  }
++#endif
++#if TARGET_OS_IOS || TARGET_OS_MACCATALYST || TARGET_OS_OSX || TARGET_OS_TV || TARGET_OS_VISION
++  // Apply the selected compositor policy after the HDR-range properties.
++  if (@available(iOS 18.0, macCatalyst 18.0, macOS 15.0, tvOS 18.0, visionOS 2.0, *)) {
++    metalLayer.toneMapMode =
++        layerToneMapMode == CanvasLayerToneMapMode::IfSupported
++            ? CAToneMapModeIfSupported : CAToneMapModeNever;
++  }
  #endif
    // The change must be set synchronously so the first present already sees
    // it, and it must reach the render server. On a non-main thread (RN JS or
 diff --git a/node_modules/react-native-webgpu/cpp/rnwgpu/CanvasColorSpace.h b/node_modules/react-native-webgpu/cpp/rnwgpu/CanvasColorSpace.h
 --- a/node_modules/react-native-webgpu/cpp/rnwgpu/CanvasColorSpace.h
 +++ b/node_modules/react-native-webgpu/cpp/rnwgpu/CanvasColorSpace.h
-@@ -11,4 +11,7 @@
+@@ -11,4 +11,10 @@
  // ("standard", the default) or reach its extended range ("extended").
  enum class CanvasToneMappingMode { Standard, Extended };
 
 +// Experimental native configuration: select the Metal presentation API.
 +enum class CanvasDynamicRangeMode { WantsExtended, Preferred };
 +
++// Independent Core Animation presentation policy.
++enum class CanvasLayerToneMapMode { Never, IfSupported };
++
  } // namespace rnwgpu
 diff --git a/node_modules/react-native-webgpu/cpp/rnwgpu/SurfaceRegistry.h b/node_modules/react-native-webgpu/cpp/rnwgpu/SurfaceRegistry.h
 --- a/node_modules/react-native-webgpu/cpp/rnwgpu/SurfaceRegistry.h
 +++ b/node_modules/react-native-webgpu/cpp/rnwgpu/SurfaceRegistry.h
-@@ -45,7 +45,9 @@
+@@ -45,7 +45,10 @@
  void applyCAMetalLayerColorSpace(void *nativeSurface,
                                   wgpu::TextureFormat format,
                                   CanvasColorSpace colorSpace,
 -                                 CanvasToneMappingMode toneMappingMode);
 +                                 CanvasToneMappingMode toneMappingMode,
 +                                 CanvasDynamicRangeMode dynamicRangeMode,
-+                                 double contentsHeadroom);
++                                 double contentsHeadroom,
++                                 CanvasLayerToneMapMode layerToneMapMode);
  #endif
 
  struct NativeInfo {
-@@ -300,7 +302,8 @@
+@@ -300,7 +303,8 @@
          configureSurfaceLocked(config);
  #ifdef __APPLE__
          applyCAMetalLayerColorSpace(_nativeSurface, _config.format, _colorSpace,
 -                                    _toneMappingMode);
 +                                    _toneMappingMode, _nativeDynamicRangeMode,
-+                                    _nativeContentsHeadroom);
++                                    _nativeContentsHeadroom, _nativeToneMapMode);
  #endif
          if (blit) {
            presentBlit = blitOffscreenToSurfaceLocked();
-@@ -340,12 +343,16 @@
+@@ -340,12 +344,18 @@
        wgpu::SurfaceConfiguration &newConfig,
        std::vector<wgpu::TextureFormat> viewFormats,
        CanvasColorSpace colorSpace = CanvasColorSpace::SRGB,
 -      CanvasToneMappingMode toneMappingMode = CanvasToneMappingMode::Standard) {
 +      CanvasToneMappingMode toneMappingMode = CanvasToneMappingMode::Standard,
 +      CanvasDynamicRangeMode dynamicRangeMode = CanvasDynamicRangeMode::WantsExtended,
-+      double contentsHeadroom = 0.0) {
++      double contentsHeadroom = 0.0,
++      CanvasLayerToneMapMode layerToneMapMode = CanvasLayerToneMapMode::Never) {
      applyPendingAttach(/* supersedeInFlightFrame = */ true);
      std::unique_lock<std::shared_mutex> lock(_mutex);
      _viewFormats = std::move(viewFormats);
      _colorSpace = colorSpace;
      _toneMappingMode = toneMappingMode;
 +    _nativeDynamicRangeMode = dynamicRangeMode;
++    _nativeToneMapMode = layerToneMapMode;
 +    _nativeContentsHeadroom = contentsHeadroom;
      _config = newConfig;
      // The caller's viewFormats storage dies with the call; point the stored
      // configuration at our own copy.
-@@ -412,6 +419,8 @@
+@@ -412,6 +422,9 @@
      _config = {};
      _colorSpace = CanvasColorSpace::SRGB;
      _toneMappingMode = CanvasToneMappingMode::Standard;
++    _nativeToneMapMode = CanvasLayerToneMapMode::Never;
 +    _nativeDynamicRangeMode = CanvasDynamicRangeMode::WantsExtended;
 +    _nativeContentsHeadroom = 0.0;
      _viewFormats.clear();
      _acquiredFromSurface = false;
      _frameEpoch++;
-@@ -919,7 +928,8 @@
+@@ -919,7 +932,8 @@
        configureSurfaceLocked(_config);
  #ifdef __APPLE__
        applyCAMetalLayerColorSpace(_nativeSurface, _config.format, _colorSpace,
 -                                  _toneMappingMode);
 +                                  _toneMappingMode, _nativeDynamicRangeMode,
-+                                  _nativeContentsHeadroom);
++                                  _nativeContentsHeadroom, _nativeToneMapMode);
  #endif
      } else {
        _texture = createOffscreenTextureLocked();
-@@ -1285,6 +1295,8 @@
+@@ -1285,6 +1299,9 @@
    std::vector<wgpu::TextureFormat> _viewFormats;
    CanvasColorSpace _colorSpace = CanvasColorSpace::SRGB;
    CanvasToneMappingMode _toneMappingMode = CanvasToneMappingMode::Standard;
++  CanvasLayerToneMapMode _nativeToneMapMode = CanvasLayerToneMapMode::Never;
 +  CanvasDynamicRangeMode _nativeDynamicRangeMode = CanvasDynamicRangeMode::WantsExtended;
 +  double _nativeContentsHeadroom = 0.0;
    // Keeps the Dawn instance alive for as long as any canvas exists.
@@ -152,14 +164,15 @@ diff --git a/node_modules/react-native-webgpu/cpp/rnwgpu/SurfaceRegistry.h b/nod
 diff --git a/node_modules/react-native-webgpu/cpp/rnwgpu/api/GPUCanvasContext.cpp b/node_modules/react-native-webgpu/cpp/rnwgpu/api/GPUCanvasContext.cpp
 --- a/node_modules/react-native-webgpu/cpp/rnwgpu/api/GPUCanvasContext.cpp
 +++ b/node_modules/react-native-webgpu/cpp/rnwgpu/api/GPUCanvasContext.cpp
-@@ -31,7 +31,9 @@
+@@ -31,7 +31,10 @@
    surfaceConfiguration.presentMode = wgpu::PresentMode::Fifo;
    _surfaceInfo->configure(surfaceConfiguration, std::move(viewFormats),
                            configuration->colorSpace,
 -                          configuration->toneMappingMode);
 +                          configuration->toneMappingMode,
 +                          configuration->nativeDynamicRangeMode,
-+                          configuration->nativeContentsHeadroom);
++                          configuration->nativeContentsHeadroom,
++                          configuration->nativeToneMapMode);
  }
 
  void GPUCanvasContext::unconfigure() { _surfaceInfo->unconfigure(); }
@@ -173,16 +186,17 @@ diff --git a/node_modules/react-native-webgpu/cpp/rnwgpu/api/descriptors/GPUCanv
  #include <memory>
  #include <vector>
 
-@@ -23,6 +24,8 @@
+@@ -23,6 +24,9 @@
    wgpu::CompositeAlphaMode alphaMode = wgpu::CompositeAlphaMode::Opaque;
    CanvasColorSpace colorSpace = CanvasColorSpace::SRGB;
    CanvasToneMappingMode toneMappingMode = CanvasToneMappingMode::Standard;
++  CanvasLayerToneMapMode nativeToneMapMode = CanvasLayerToneMapMode::Never;
 +  CanvasDynamicRangeMode nativeDynamicRangeMode = CanvasDynamicRangeMode::WantsExtended;
 +  double nativeContentsHeadroom = 0.0;
  };
 
  } // namespace rnwgpu
-@@ -107,6 +110,34 @@
+@@ -107,6 +111,48 @@
        }
      }
 
@@ -212,6 +226,20 @@ diff --git a/node_modules/react-native-webgpu/cpp/rnwgpu/api/descriptors/GPUCanv
 +          throw jsi::JSError(runtime, "nativeContentsHeadroom must be 0 or a finite number >= 1.");
 +        }
 +        result->nativeContentsHeadroom = headroom;
++      }
++    }
++    if (!outOfBounds && arg.isObject()) {
++      auto prop = arg.getObject(runtime).getProperty(runtime, "nativeToneMapMode");
++      if (!prop.isUndefined()) {
++        if (!prop.isString()) {
++          throw jsi::JSError(runtime, "nativeToneMapMode must be never or if-supported.");
++        }
++        auto name = prop.asString(runtime).utf8(runtime);
++        if (name == "if-supported") {
++          result->nativeToneMapMode = CanvasLayerToneMapMode::IfSupported;
++        } else if (name != "never") {
++          throw jsi::JSError(runtime, "nativeToneMapMode must be never or if-supported.");
++        }
 +      }
 +    }
      return result;
