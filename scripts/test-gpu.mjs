@@ -44,6 +44,7 @@ try {
       const sign = h & 0x8000 ? -1 : 1;
       const exponent = (h >> 10) & 31;
       const fraction = h & 1023;
+      if (exponent === 31) return fraction ? NaN : sign * Infinity;
       return sign * (exponent ? 2 ** (exponent - 15) * (1 + fraction / 1024) : 2 ** -14 * fraction / 1024);
     }
     const samples = [];
@@ -76,10 +77,13 @@ try {
     return samples;
   });
   for (const { patches, border, labelArea } of results) {
-    assert.deepEqual(patches.map(p => p.value), [0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 11]);
+    assert.deepEqual(patches.map(p => p.value), [0.25, 0.5, 1, 2, 4, 16, 64, 256, 4096, 65504]);
     for (const { value, rgba } of patches) {
       const expected = 1.055 * value ** (1 / 2.4) - 0.055;
-      assert.ok(Math.abs(rgba[0] - expected) < 0.004, `Step ${value}: ${rgba[0]} vs ${expected}`);
+      // Half-float spacing grows with magnitude; allow one rounding step.
+      const tolerance = Math.max(0.004, expected / 1024);
+      assert.ok(Number.isFinite(rgba[0]), `Step ${value} must remain finite`);
+      assert.ok(Math.abs(rgba[0] - expected) < tolerance, `Step ${value}: ${rgba[0]} vs ${expected}`);
       assert.deepEqual(rgba.slice(1, 3), rgba.slice(0, 2), 'gray has equal RGB');
       assert.equal(rgba[3], 1);
     }

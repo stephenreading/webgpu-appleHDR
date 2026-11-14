@@ -53,7 +53,7 @@ device build without Metro, use Release (`npm run ios -- --configuration Release
 ## Use the comparison
 
 - The pattern has two rows of five patches, ordered left to right, top to bottom:
-  **0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 11× SDR white**.
+  **0.25, 0.5, 1, 2, 4, 16, 64, 256, 4096, 65504× SDR white**.
 - Labels describe **linear luminance**, before sRGB encoding. The **1×** patch
   is marked as the SDR-white reference. Label areas and gaps are black.
 - Switch APIs without restarting. All ten patches keep identical pixel values
@@ -67,10 +67,13 @@ device build without Metro, use Release (`npm run ios -- --configuration Release
   brighter steps clip together. The same fixed pattern is used in Bubblepopalypse's
   Debug menu, independently of its saved highlight gain.
 
-`contentsHeadroom` stays at **11** throughout the preferred path because that
-is this sample's maximum linear luminance ratio. It describes the content;
-it is neither a brightness multiplier nor a promise that a display can emit
-11× white. There is no brightness slider or gain applied to this pattern.
+`contentsHeadroom` stays at **65504** throughout the preferred path, matching
+the maximum linear step. This is the largest finite float16 value, chosen because
+both samples use half-float rendering. The widely spaced steps stress the
+system tone-mapping comparison. Values are still sRGB-encoded before presentation;
+65504 is a linear luminance ratio, not an encoded channel value. Headroom describes
+the content, rather than multiplying brightness or promising a display can emit
+65504× white. There is no brightness slider or gain applied to this pattern.
 
 Use a physical HDR-capable display to assess brightness. Simulators and the
 automated GPU test can check rendering but cannot establish real HDR output.
@@ -97,7 +100,7 @@ context.configure({
   toneMapping: { mode: 'extended' },
   nativeDynamicRangeMode: 'preferred', // or 'wants-extended'
   nativeToneMapMode: 'never', // or 'if-supported'
-  nativeContentsHeadroom: 11,
+  nativeContentsHeadroom: 65504,
 });
 ```
 
@@ -120,7 +123,7 @@ configuration key and cannot make the on/off comparison through a JS reload.
 
 | Selected path | Native settings |
 | --- | --- |
-| `preferred`, OS 26+ | `preferredDynamicRange = CADynamicRangeHigh`, `contentsHeadroom = 11`; legacy flag cleared wherever available |
+| `preferred`, OS 26+ | `preferredDynamicRange = CADynamicRangeHigh`, `contentsHeadroom = 65504`; legacy flag cleared wherever available |
 | `wants-extended` | Legacy flag enabled wherever available; on OS 26+, clear `contentsHeadroom` to 0 and set `preferredDynamicRange = CADynamicRangeStandard` |
 | `preferred`, OS before 26 | No HDR opt-in; legacy flag cleared wherever available. No fallback, so the selected API is actually the one being tested |
 | `wants-extended`, tvOS | No legacy call: it is unavailable. The UI labels this as the upstream SDR baseline |

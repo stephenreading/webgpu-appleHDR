@@ -13,7 +13,7 @@ test('the A/B comparison changes only the presentation API', () => {
   assert.equal(preferred.colorSpace, 'srgb');
   assert.equal(preferred.toneMapping.mode, 'extended');
   assert.equal(preferred.nativeContentsHeadroom, Math.max(...GRAYSCALE_STEPS));
-  assert.equal(CONTENTS_HEADROOM, 11);
+  assert.equal(CONTENTS_HEADROOM, 65504);
 });
 
 test('unsupported APIs are identified, rather than silently called HDR', () => {
@@ -30,6 +30,6 @@ test('layer tone mapping changes only native presentation, preserving HDR pixels
     assert.equal(on.nativeToneMapMode, 'if-supported');
     assert.deepEqual({ ...off, nativeToneMapMode: undefined }, { ...on, nativeToneMapMode: undefined });
     assert.equal(on.toneMapping.mode, 'extended');
-    assert.equal(on.nativeContentsHeadroom, 11);
+    assert.equal(on.nativeContentsHeadroom, CONTENTS_HEADROOM);
   }
 });

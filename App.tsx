@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GpuComparison } from './src/GpuComparison';
-import { GRAYSCALE_STEPS, STEP_COLUMNS, STEP_ROWS, type LayerToneMapMode, type PresentationMode } from './src/comparison';
+import { CONTENTS_HEADROOM, GRAYSCALE_STEPS, STEP_COLUMNS, STEP_ROWS, type LayerToneMapMode, type PresentationMode } from './src/comparison';
 import { presentationStatus } from './src/presentation';
 
 export default function App() {
@@ -23,7 +23,7 @@ export default function App() {
     <ScrollView contentContainerStyle={styles.scroll}>
       <View style={[styles.content, Platform.isTV && styles.tv]}>
         <Text style={styles.title}>WebGPU · Apple HDR</Text>
-        <Text style={styles.subtitle}>{Platform.isTV ? 'tvOS' : 'iOS'} {Platform.Version} · headroom 11</Text>
+        <Text style={styles.subtitle}>{Platform.isTV ? 'tvOS' : 'iOS'} {Platform.Version} · headroom {CONTENTS_HEADROOM}</Text>
         <View testID="hdr-calibration">
           <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel="HDR API">
             {modes.map(([value, label]) => <Pressable key={value}

@@ -1,7 +1,9 @@
 export type PresentationMode = 'preferred' | 'wants-extended';
 export type LayerToneMapMode = 'never' | 'if-supported';
 
-export const GRAYSCALE_STEPS = [0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 11] as const;
+// Largest finite half-float: also representable in Three's linear frame buffer.
+export const FLOAT16_MAX = 65504;
+export const GRAYSCALE_STEPS = [0.25, 0.5, 1, 2, 4, 16, 64, 256, 4096, FLOAT16_MAX] as const;
 export const STEP_COLUMNS = 5;
 export const STEP_ROWS = 2;
 export const CONTENTS_HEADROOM = Math.max(...GRAYSCALE_STEPS);
